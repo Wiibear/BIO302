@@ -1,0 +1,301 @@
+---
+title: "Bio 302 Exam 2022"
+author: "Vebjør Kveberg Opsanger"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r load-packages, include=FALSE}
+library(tidyverse) # For manipulating data
+library(ggfortify) # For making diagnostic plots
+library(mgcv) # For GAM models
+library(MASS) # For negative binomial glm model
+library(gt) # For making a table
+library(renv) # For version control
+library(usethis) # For version control using git and github
+
+```
+```{r git-and-github}
+# Setting up git and github for version control
+use_git()
+use_github()
+```
+
+## Questions
+
+**1)** Discuss the advantages and challenges of pre-registering an experiment. 
+
+Answer:
+
+Preregistering experiments requires researchers to plan out their statistical analysis ahead of time. This prevents p-hacking, as the statistical analysis is locked in before hand. HARK-ing is also prevented since the predictors and responses used in the test has already been comitted to. If a statistical test is found to be inappropriate (i.e. violating assumptions) after preregistration or the something goes wrong in the experiment which affects the data, it is possible to report what changes were made and why they were required. Since statistical methods can be changed if researchers have valid reasoning, the only real disadvantage to preregistration is the time used in filling out and handing in the preregistration.  
+
+\
+\
+**2)** Discuss the steps you plan to use to make your thesis reproducible (or your next manuscript).
+
+Answer:
+
+First, I would create a Rproject file and move all other files I will be needing into the same folder as the Rproject. Then I will create subfolders so that the main folder is tidier. Added to that, subfolders will have logical, descriptive names so that the organization is easily understandable for people that are not me.
+
+I will add comments to the code about **why** I am doing what I am doing so that the code can be easier understood with someone who has not worked with my data and never seen the code. When I move on to a different part of the code (i.e. going from data manipulation to plotting) I will mark a clear divide between that part and the next either by making a new chung in markdown/quarto, or making a "### name of new part ###" in the script.
+
+When coding I will use git for version control and have an online repository on github so that others can fork my code and try it for myself. I will be using the renv package for version control so that the person forking will not have to worry about anything breaking due to having different versions of R and the packages that are used.  
+
+\
+\
+**3)** A statistical test has a p-value of 0.04.
+ - How should this p-value be interpreted? 
+ - Is it good evidence against the null hypothesis?
+
+Answer:
+
+That p-value should be interpreted as the statistical test telling us that the there is a 0.04 percent changes that the results we are seeing is a type I error.
+
+Whether this is good evidence against the null hypothesis is partly determined by if the study design and if no p-hacking has ocurred (trying different tests until a significant result is found, removing outliers, etc). Bad study design and p-hacking means that that this p-value is worthless. Good study design and no p-hacking tells us that the results may be good evidence against the null hypothesis, though not on it's own. This experiment would ideally be reproduced for it to be considered good evidence against the null hypothesis.  
+
+\
+\
+**4)** A graduate student got this advice from their supervisor: “Just make a giant correlation matrix and see what is interesting”. Discuss how this approach could lead to questionable research practices and how this could be avoided.  
+
+Answer:
+
+Making a giant correlation matrix could lead to HARK-ing, which means presenting a hypothesis generated after analyzing data as being created before the experiment took place (and the null hypothesis has, of course, already been rejected). This correlation could only be present in this data set, leading to a type 1 error. In addition, correlation does not equal causation, and there may be one or more other factors that affect both of the correlated variable. The data was, after all, not gathered to test that specific correlation, meaning that the experimental design was likely not well suited for testing the hypothesis in the first place. To avoid untrustworthy results, a giant correlation matrix should only be used as means of generating hypotheses which can later be tested independently with an appropriate study design.  
+
+\
+\
+**5)** Explain what autocorrelation is, how it can be detected and how its effect on regression can be controlled for.
+
+Answer:
+
+Autocorrelation is when residuals of a variable are not independent of each other, thereby violating least squares regression which says that residuals need to be independent. The effect of autocorrelation is that standard statistical tests become too liberal by rejecting the null hypothesis too often, the effective sample size is shrunk because observations are not independent, and the calculated confidence intervals become too narrow.
+
+Autocorrelation can be detected by testing the correlation of a data series with its lagged self (The correlation a data point has with the data points that come after it). The effects of autocorrelation can be controlled for by using autoregressive models such as generalized least squares (gls), and adding correlation structures to models which have that option.  
+
+\
+\
+**6)** The `lynx` data (available with-in R) show the number of lynx (norsk: gaupe) trapped in Canada in 1821-1934. Plot the data then examine the acf and pacf for these data. What can you infer from these about the type of autocorrelation in these data?
+
+```{r 6-lynx}
+# Plotting Lynx data
+plot(lynx)
+
+# Making a model using the lynx data
+year <- time(lynx) # Extracting the timeseries for use in the model
+
+lynx_mod <- lm(lynx ~ year, data = lynx) # Model for use acf and pacf functions
+
+# Plotting the acf and pacf of the lynx model residuals
+acf(resid(lynx_mod))
+pacf(resid(lynx_mod))
+
+```
+Answer:
+
+The autocorrelation is cyclical. The correlation of residuals oscillating between having more correlation and less correlation than would independent residuals. There are four significant spikes in the pacf plot, which means this likely a fourth order autoregressive prosess.  
+
+\
+\
+7) Chironomid species richness has been recorded in some Norwegian lakes. Three predictor variables are available, water temperature, depth and pH. We want to test the hypothesis that species richness is related to temperature.
+
+The data are in the file chironomid.txt.
+
+\
+\
+- What distribution could be assumed for the response variable?
+
+Answer: 
+
+A poisson distrubution can be assumed for the response variable because number of species is count data.  
+
+\
+\
+- What type of analysis is appropriate?	
+
+A generalized linear model is appropriate so that the poisson distribution specified for the model.  
+
+\
+\
+- Fit an appropriate parametric model to test the hypothesis.
+
+```{r loading-chironomid-data-and-glm}
+# Loading data
+chironomids <- read.delim("Data/chironomid.txt",
+           sep = "\t") |> 
+  drop_na() # For proper function of model in the dredge function
+
+# Fitting model
+mod_glm <- glm(noSpecies ~ temperature, 
+               data = chironomids,
+               family = "poisson") # Poisson because of count data
+
+summary(mod_glm) # Looking at coefficients and p-values
+```
+\
+\
+- Check the model diagnostics. Justify any changes you need to make to the model.
+
+```{r diagnostic-plots-and-changes}
+autoplot(mod_glm) # Looking at diagnostic plots
+
+anova(mod_glm) # Looking for overdispersion
+
+
+# Fitting negative binomial glm to account for overdispersion
+mod_glm2 <- glm.nb(noSpecies ~ temperature, 
+               data = chironomids,
+               link = "log")
+
+summary(mod_glm2)
+```
+Overdispersion was found (residual deviance > residual df), and therefore a negative binomial distribution was fitted to account for the overdispersion.  
+
+\
+\
+- Predict species richness at -5, 5, and 30°C and show the 95% confidence intervals.
+
+```{r predictions}
+
+# 5°C prediction + confidence interval
+pred5 <- predict(mod_glm2, newdata = data.frame(temperature = -5), se.fit = TRUE)
+CI5 <- c(upper = exp(pred5$fit + pred5$se.fit * 1.96), lower = exp(pred5$fit - pred5$se.fit * 1.96)) 
+CI5
+
+# -5°C prediction + confidence interval
+pred_neg_5 <- predict(mod_glm2, newdata = data.frame(temperature = 5), se.fit = TRUE)
+CI_neg_5 <- c(upper = exp(pred_neg_5$fit + pred_neg_5$se.fit * 1.96), lower = exp(pred_neg_5$fit - pred5$se.fit * 1.96)) 
+CI_neg_5
+
+# 30°C prediction + confidence interval
+pred30 <- predict(mod_glm2, newdata = data.frame(temperature = 30), se.fit = TRUE)
+CI30 <- c(upper = exp(pred30$fit + pred30$se.fit * 1.96), lower = exp(pred30$fit - pred30$se.fit * 1.96)) 
+CI30
+
+
+
+```
+*Confidence interval for -5°C:*
+
+Lower: `r round(CI_neg_5[2], digits = 3)` 
+
+Sample mean: `r round(exp(pred_neg_5$fit), digits = 3)`
+
+Upper limit: `r round(CI_neg_5[1], digits = 3)` 
+
+
+*Confidence interval for 5°C:*
+
+Lower: `r round(CI5[2], digits = 3)` 
+
+Sample mean: `r round(exp(pred5$fit), digits = 3)`
+
+Upper limit: `r round(CI5[1], digits = 3)` 
+
+
+*Confidence interval for 30°C:*
+
+Lower: `r round(CI30[2], digits = 3)` 
+
+Sample mean: `r round(exp(pred30$fit), digits = 3)`
+
+Upper limit: `r round(CI30[1], digits = 3)` 
+
+\
+\
+- Present the results using both graphs and tables.						
+```{r results-graph}
+# Making prediction
+new_data <- tibble(temperature = c(0:23)) # New data for making a prediction of the whole data set
+
+pred <- predict(mod_glm2, newdata = new_data, se.fit = TRUE) # Prediction used to plot
+
+# For tidier code when plotting
+upper <- exp(pred$fit + pred$se.fit * 1.96)
+lower <- exp(pred$fit - pred$se.fit * 1.96)
+fit <- exp(pred$fit)
+
+# Plotting
+ggplot(chironomids, aes(temperature, noSpecies)) +
+  geom_point() +
+  geom_line(aes(temperature, y = fit), 
+            data  = data.frame(temperature = c(0:23), # From 0°C to 23°C
+                               fit = fit)) + 
+  geom_ribbon(aes(temperature, ymax = upper, ymin = lower),
+              data  = data.frame(temperature = c(0:23), up = upper, down = lower),
+              inherit.aes = FALSE,
+              alpha = 0.2)  +
+  xlab("Temperature (°C)") +
+  ylab("Number of chironomid species")
+  
+
+```
+
+\
+\
+```{r table}
+table_data <- tibble(temperature = 0:23,
+       estimate = fit,
+       upper = upper,
+       lower = lower)
+
+gt(data = table_data, caption = html("Number of chironomid species found at temperatures from 0&deg;C to 23&deg;C")) |> 
+   cols_label(estimate = "Sample mean",
+              upper = "Upper limit",
+              lower = "Lower limit",
+              temperature = html("Temperature (&deg;C)")) |>
+  fmt_number(columns = c(estimate, upper, lower), decimals = 2) |> 
+  tab_spanner(label = "Confidence interval", columns = (c(lower, estimate, upper)))
+
+```
+
+\
+\	
+ - Test if a generalized additive model offers an improved fit.		
+```{r GAM-GLM-improve-fit}
+mod_gam <- gam(noSpecies ~ s(temperature), 
+               data = chironomids,
+               family = "nb", # Fitting the negative binomial distribution to the gam
+               link = "log")
+
+
+AIC(mod_glm2, mod_gam) # Comparing models to see which one is best suited
+
+
+
+```
+Fit is improved in the GAM model (Lower AIC)
+ 
+\ 
+\
+ - Can your model be improved by including additional terms?
+```{r dredge}
+global_mod <- glm.nb(noSpecies ~ ., # Global model for use in dredge
+               data = chironomids,
+               na.action = na.fail) # na.action to be able to use dredge
+
+
+MuMIn::dredge(global_mod) # Looking at models using all the different predictor variables 
+
+# Adding all predictor variable improves the model (highest weight and AICc)
+
+# Final_model
+final_mod <- gam(noSpecies ~ temperature + s(depth) + s(site) + s(pH), 
+               data = chironomids,
+               family = "nb",
+               link = "log")
+
+
+summary(final_mod)
+
+species_temp_increase <- coef(final_mod)[2] # For use in answer text
+```
+\ 
+\
+- Write a biological interpretation of your final model.	
+
+Answer:
+
+The number of chironomid species increases by `r round(exp(species_temp_increase), digits = 2)` for every one celcius degree increase in temperature.
